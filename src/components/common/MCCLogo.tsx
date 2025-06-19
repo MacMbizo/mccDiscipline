@@ -16,10 +16,10 @@ const MCCLogo: React.FC<MCCLogoProps> = ({ size = 'md', className = '' }) => {
 
   return (
     <div className={`${sizeClasses[size]} flex items-center justify-center ${className}`}>
-      <img 
-        src="/favicon.ico" 
-        alt="Class Harmony Hub Logo" 
-        className="w-full h-full object-contain" 
+      <img
+        src={`${import.meta.env.BASE_URL}favicon.ico`}
+        alt="Class Harmony Hub Logo"
+        className="w-full h-full object-contain"
       />
     </div>
   );
