@@ -1,148 +1,86 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useBehaviorRecords } from '@/hooks/useBehaviorRecords';
 import { 
-  GraduationCap, 
+  TrendingUp, 
   Award, 
   AlertTriangle, 
-  TrendingUp,
-  User,
   Heart,
-  RefreshCw
+  User,
+  Calendar,
+  Target,
+  BookOpen
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import DashboardHeader from './DashboardHeader';
 import HeatBar from '@/components/common/HeatBar';
-import { format } from 'date-fns';
-import { Button } from '@/components/ui/button';
+import BehaviorChart from '@/components/analytics/BehaviorChart';
+import ResponsiveContainer from '@/components/mobile/ResponsiveContainer';
+import ResponsiveGrid from '@/components/mobile/ResponsiveGrid';
 
 const StudentDashboard: React.FC = () => {
   const { user, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState('overview');
 
-  // Get student profile with better error handling
-  const { data: studentProfile, isLoading: studentLoading, error: studentError, refetch: refetchProfile } = useQuery({
-    queryKey: ['student-profile', user?.id],
+  // Get student's own data including shadow parent info
+  const { data: studentData } = useQuery({
+    queryKey: ['student_data', user?.name],
     queryFn: async () => {
-      if (!user?.id) {
-        console.log('No user ID available for profile fetch');
-        return null;
-      }
-      
-      console.log('Fetching student profile for user:', user.id);
+      if (!user?.name) return null;
       
       const { data, error } = await supabase
         .from('students')
         .select(`
           *,
-          shadow_parent:profiles!shadow_parent_id(name)
+          shadow_parent_assignments!inner(
+            shadow_parent:profiles!shadow_parent_id(name, gender)
+          )
         `)
-        .eq('id', user.id)
+        .eq('name', user.name)
+        .eq('shadow_parent_assignments.is_active', true)
         .maybeSingle();
       
-      if (error) {
-        console.error('Error fetching student profile:', error);
-        // Don't throw error immediately, return null and let the component handle it
-        return null;
-      }
-      
-      console.log('Student profile fetched:', data);
+      if (error && error.code !== 'PGRST116') throw error;
       return data;
     },
-    enabled: !!user?.id,
-    retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: !!user?.name,
   });
 
-  // Get behavior records for this student
-  const { data: allBehaviorRecords = [], isLoading: recordsLoading } = useBehaviorRecords();
-  
-  const studentRecords = allBehaviorRecords.filter(record => 
-    record.student_id === user?.id
-  );
+  // Get student's behavior records
+  const { data: behaviorRecords = [] } = useQuery({
+    queryKey: ['student_behavior_records', studentData?.id],
+    queryFn: async () => {
+      if (!studentData?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('behavior_records')
+        .select('*')
+        .eq('student_id', studentData.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!studentData?.id,
+  });
+
+  const shadowParent = studentData?.shadow_parent_assignments?.[0]?.shadow_parent;
+  const shadowParentRelation = shadowParent?.gender === 'male' ? 'Shadow Father' : 
+                              shadowParent?.gender === 'female' ? 'Shadow Mother' : 
+                              'Shadow Parent';
+
+  const recentIncidents = behaviorRecords.filter(record => record.type === 'incident').length;
+  const recentMerits = behaviorRecords.filter(record => record.type === 'merit').length;
 
   if (!user) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600">Loading your dashboard...</p>
-        </div>
-      </div>
-    );
+    return null;
   }
-
-  // Show loading state while fetching data
-  if (studentLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <DashboardHeader
-          title="Student Dashboard"
-          userName={user.name}
-          onLogout={logout}
-        />
-        <div className="p-6 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading your profile...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Only show error if we've tried to fetch and there's a real error, not just missing data
-  if (studentError && !studentProfile) {
-    console.error('Student dashboard error:', studentError);
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <DashboardHeader
-          title="Student Dashboard"
-          userName={user.name}
-          onLogout={logout}
-        />
-        <div className="p-6 flex items-center justify-center">
-          <Card className="w-full max-w-md">
-            <CardContent className="p-6 text-center">
-              <AlertTriangle className="h-12 w-12 text-orange-500 mx-auto mb-4" />
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">Profile Loading Issue</h2>
-              <p className="text-gray-600 mb-4">
-                There was a temporary issue loading your profile. This might be because your student record hasn't been set up yet.
-              </p>
-              <div className="space-y-2">
-                <Button onClick={() => refetchProfile()} className="w-full">
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Try Again
-                </Button>
-                <Button variant="outline" onClick={logout} className="w-full">
-                  Return to Login
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  const incidents = studentRecords.filter(r => r.type === 'incident');
-  const merits = studentRecords.filter(r => r.type === 'merit');
-  const totalMeritPoints = merits.reduce((sum, merit) => sum + (merit.points || 0), 0);
-
-  // Recent records (last 30 days)
-  const recentRecords = studentRecords.filter(record => {
-    const recordDate = new Date(record.timestamp || record.created_at || '');
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    return recordDate >= thirtyDaysAgo;
-  });
-
-  const recentIncidents = recentRecords.filter(r => r.type === 'incident');
-  const recentMerits = recentRecords.filter(r => r.type === 'merit');
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -152,291 +90,264 @@ const StudentDashboard: React.FC = () => {
         onLogout={logout}
       />
 
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
-        {/* Student Info Card */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center">
-                <GraduationCap className="h-8 w-8 text-blue-600" />
-              </div>
+      <ResponsiveContainer className="py-4 lg:py-6 space-y-6">
+        {/* Welcome Section */}
+        <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+          <CardContent className="p-4 lg:p-6">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div className="flex-1">
-                <h1 className="text-2xl font-bold text-blue-900">
-                  Welcome back, {studentProfile?.name || user.name}!
+                <h1 className="text-xl lg:text-2xl font-bold text-blue-900 mb-2">
+                  Welcome back, {user.name}!
                 </h1>
-                <div className="flex items-center gap-4 mt-2">
-                  {studentProfile ? (
-                    <>
-                      <Badge variant="outline">{studentProfile.grade}</Badge>
-                      {studentProfile.gender && (
-                        <Badge variant="outline">{studentProfile.gender}</Badge>
-                      )}
-                      {studentProfile.boarding_status && (
-                        <Badge variant="outline">
-                          {studentProfile.boarding_status === 'boarder' ? 'Boarder' : 'Day Scholar'}
-                        </Badge>
-                      )}
-                      {studentProfile.shadow_parent && (
-                        <div className="flex items-center gap-1 text-sm text-pink-600">
-                          <Heart className="h-4 w-4" />
-                          Shadow Parent: {studentProfile.shadow_parent.name}
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <Badge variant="secondary">Profile Incomplete</Badge>
-                  )}
-                </div>
+                <p className="text-gray-600 text-sm lg:text-base">
+                  Track your behavior progress, view your achievements, and connect with your mentors.
+                </p>
               </div>
+              {studentData && (
+                <div className="text-right">
+                  <div className="text-sm text-gray-600 mb-1">Your Grade</div>
+                  <Badge className="bg-blue-100 text-blue-800 text-lg px-3 py-1">
+                    {studentData.grade}
+                  </Badge>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
+
+        {/* Shadow Parent Card */}
+        {shadowParent && (
+          <Card className="border-pink-200 bg-pink-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-pink-800">
+                <Heart className="h-5 w-5" />
+                Your {shadowParentRelation}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 bg-pink-200 rounded-full flex items-center justify-center">
+                  <Heart className="h-6 w-6 text-pink-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-pink-900">{shadowParent.name}</h3>
+                  <p className="text-sm text-pink-700">
+                    Your dedicated mentor who cares about your progress and success
+                  </p>
+                </div>
+                <Button variant="outline" className="border-pink-300 text-pink-700 hover:bg-pink-100">
+                  <User className="h-4 w-4 mr-2" />
+                  View Profile
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <ResponsiveGrid cols={{ mobile: 2, tablet: 4, desktop: 4 }} gap="md">
           <Card>
             <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-green-600">{totalMeritPoints}</div>
-              <div className="text-sm text-gray-600">Total Merit Points</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-blue-600">{merits.length}</div>
-              <div className="text-sm text-gray-600">Total Merits</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-red-600">{incidents.length}</div>
-              <div className="text-sm text-gray-600">Total Incidents</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-orange-600">
-                {studentProfile?.behavior_score?.toFixed(1) || '0.0'}
+              <div className="text-2xl font-bold text-blue-600">
+                {studentData?.behavior_score?.toFixed(1) || '0.0'}
               </div>
-              <div className="text-sm text-gray-600">Behavior Score</div>
+              <div className="text-sm text-gray-600">Heat Score</div>
+              <div className="text-xs text-gray-500 mt-1">
+                {(studentData?.behavior_score || 0) <= 3 ? 'Excellent' :
+                 (studentData?.behavior_score || 0) <= 5 ? 'Good' :
+                 (studentData?.behavior_score || 0) <= 7 ? 'Warning' : 'Critical'}
+              </div>
             </CardContent>
           </Card>
-        </div>
 
-        {/* Heat Bar */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Your Behavior Score
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <HeatBar 
-              score={studentProfile?.behavior_score || 0} 
-              showTrend={true}
-              size="lg"
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-red-600">{recentIncidents}</div>
+              <div className="text-sm text-gray-600">Recent Incidents</div>
+              <div className="text-xs text-gray-500 mt-1">Last 10 records</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-green-600">{recentMerits}</div>
+              <div className="text-sm text-gray-600">Recent Merits</div>
+              <div className="text-xs text-gray-500 mt-1">Last 10 records</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-purple-600">
+                {studentData?.boarding_status === 'boarder' ? 'Boarder' : 'Day Scholar'}
+              </div>
+              <div className="text-sm text-gray-600">Status</div>
+              <div className="text-xs text-gray-500 mt-1">School residence</div>
+            </CardContent>
+          </Card>
+        </ResponsiveGrid>
+
+        {/* Main Content Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="overflow-x-auto pb-2">
+            <TabsList className="grid grid-cols-4 w-full min-w-max lg:min-w-0 bg-white border">
+              <TabsTrigger value="overview" className="text-xs lg:text-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="behavior" className="text-xs lg:text-sm data-[state=active]:bg-green-50 data-[state=active]:text-green-700">
+                Behavior
+              </TabsTrigger>
+              <TabsTrigger value="progress" className="text-xs lg:text-sm data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700">
+                Progress
+              </TabsTrigger>
+              <TabsTrigger value="goals" className="text-xs lg:text-sm data-[state=active]:bg-orange-50 data-[state=active]:text-orange-700">
+                Goals
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="overview" className="space-y-6 mt-6">
+            {/* Heat Bar Visualization */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Your Behavior Score
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <HeatBar 
+                  score={studentData?.behavior_score || 0} 
+                  size="lg"
+                  showTrend={true}
+                />
+                <div className="mt-4 text-sm text-gray-600">
+                  <p>
+                    Your current behavior score is <strong>{studentData?.behavior_score?.toFixed(1) || '0.0'}</strong>.
+                    {(studentData?.behavior_score || 0) <= 3 && ' Excellent work! Keep it up!'}
+                    {(studentData?.behavior_score || 0) > 3 && (studentData?.behavior_score || 0) <= 5 && ' Good behavior - maintain this positive trend.'}
+                    {(studentData?.behavior_score || 0) > 5 && (studentData?.behavior_score || 0) <= 7 && ' Warning zone - focus on improving your behavior.'}
+                    {(studentData?.behavior_score || 0) > 7 && ' Critical - immediate improvement needed.'}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recent Behavior Summary */}
+            <ResponsiveGrid cols={{ mobile: 1, tablet: 2, desktop: 2 }} gap="lg">
+              <Card className="border-red-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-red-700">
+                    <AlertTriangle className="h-5 w-5" />
+                    Recent Incidents
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {behaviorRecords.filter(r => r.type === 'incident').length === 0 ? (
+                    <div className="text-center py-4 text-gray-500">
+                      <div className="text-sm">No recent incidents</div>
+                      <div className="text-xs">Great job maintaining good behavior!</div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {behaviorRecords
+                        .filter(r => r.type === 'incident')
+                        .slice(0, 3)
+                        .map((record) => (
+                          <div key={record.id} className="p-2 bg-red-50 rounded border-l-4 border-red-400">
+                            <div className="text-sm font-medium">{record.description}</div>
+                            <div className="text-xs text-gray-500">
+                              {new Date(record.created_at!).toLocaleDateString()}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border-green-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-green-700">
+                    <Award className="h-5 w-5" />
+                    Recent Merits
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {behaviorRecords.filter(r => r.type === 'merit').length === 0 ? (
+                    <div className="text-center py-4 text-gray-500">
+                      <div className="text-sm">No recent merits</div>
+                      <div className="text-xs">Keep working to earn recognition!</div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {behaviorRecords
+                        .filter(r => r.type === 'merit')
+                        .slice(0, 3)
+                        .map((record) => (
+                          <div key={record.id} className="p-2 bg-green-50 rounded border-l-4 border-green-400">
+                            <div className="text-sm font-medium flex items-center gap-2">
+                              {record.description}
+                              <Badge variant="outline" className="text-xs">
+                                {record.merit_tier}
+                              </Badge>
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {new Date(record.created_at!).toLocaleDateString()}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </ResponsiveGrid>
+          </TabsContent>
+
+          <TabsContent value="behavior" className="space-y-6 mt-6">
+            <BehaviorChart 
+              type="line" 
+              title="Your Behavior Trend Over Time"
             />
-            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-              <h4 className="font-medium text-blue-900 mb-2">Understanding Your Score</h4>
-              <ul className="text-sm text-blue-800 space-y-1">
-                <li>• 0-3: Excellent behavior - Keep it up!</li>
-                <li>• 4-5: Good behavior - You're doing well</li>
-                <li>• 6-7: Warning zone - Time to improve</li>
-                <li>• 8+: Needs attention - Speak to your teachers or counselor</li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
+          </TabsContent>
 
-        {/* Tabs for detailed records */}
-        <Tabs defaultValue="recent" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="recent">Recent Activity</TabsTrigger>
-            <TabsTrigger value="merits">All Merits</TabsTrigger>
-            <TabsTrigger value="incidents">All Incidents</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="recent">
+          <TabsContent value="progress" className="space-y-6 mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Recent Activity (Last 30 Days)</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5" />
+                  Academic & Behavioral Progress
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div className="text-center p-4 bg-green-50 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">{recentMerits.length}</div>
-                    <div className="text-sm text-green-600">Recent Merits</div>
-                  </div>
-                  <div className="text-center p-4 bg-red-50 rounded-lg">
-                    <div className="text-2xl font-bold text-red-600">{recentIncidents.length}</div>
-                    <div className="text-sm text-red-600">Recent Incidents</div>
-                  </div>
+                <div className="text-center py-8 text-gray-500">
+                  <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-600 mb-2">Progress Tracking</h3>
+                  <p>Your progress reports and achievements will be displayed here.</p>
                 </div>
-
-                <div className="space-y-3">
-                  {recentRecords
-                    .sort((a, b) => new Date(b.timestamp || b.created_at || '').getTime() - new Date(a.timestamp || a.created_at || '').getTime())
-                    .slice(0, 10)
-                    .map((record) => (
-                      <div key={record.id} className="flex items-center gap-3 p-3 border rounded-lg">
-                        {record.type === 'merit' ? (
-                          <Award className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <AlertTriangle className="h-5 w-5 text-red-600" />
-                        )}
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">
-                              {record.type === 'merit' ? `${record.merit_tier} Merit` : 'Incident'}
-                            </span>
-                            {record.type === 'merit' && (
-                              <Badge variant="outline" className="text-green-600">
-                                +{record.points} pts
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-600">{record.description}</p>
-                          {record.location && (
-                            <p className="text-xs text-gray-500">Location: {record.location}</p>
-                          )}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {format(new Date(record.timestamp || record.created_at || ''), 'MMM dd, yyyy')}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-
-                {recentRecords.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-600 mb-2">No Recent Activity</h3>
-                    <p>You haven't had any merits or incidents in the last 30 days.</p>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="merits">
+          <TabsContent value="goals" className="space-y-6 mt-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Award className="h-5 w-5 text-green-600" />
-                  All Merit Awards ({merits.length})
+                  <Target className="h-5 w-5" />
+                  Personal Goals & Targets
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {merits
-                    .sort((a, b) => new Date(b.timestamp || b.created_at || '').getTime() - new Date(a.timestamp || a.created_at || '').getTime())
-                    .map((merit) => (
-                      <div key={merit.id} className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <Award className="h-5 w-5 text-green-600" />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{merit.merit_tier} Merit</span>
-                            <Badge variant="outline" className="text-green-600">
-                              +{merit.points} pts
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-gray-600">{merit.description}</p>
-                          {merit.location && (
-                            <p className="text-xs text-gray-500">Location: {merit.location}</p>
-                          )}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {format(new Date(merit.timestamp || merit.created_at || ''), 'MMM dd, yyyy')}
-                        </div>
-                      </div>
-                    ))}
+                <div className="text-center py-8 text-gray-500">
+                  <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-600 mb-2">Goal Setting</h3>
+                  <p>Set and track your personal behavior and academic goals here.</p>
                 </div>
-
-                {merits.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    <Award className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-600 mb-2">No Merit Awards Yet</h3>
-                    <p>Keep up the good work to earn your first merit points!</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="incidents">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-red-600" />
-                  All Incidents ({incidents.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {incidents
-                    .sort((a, b) => new Date(b.timestamp || b.created_at || '').getTime() - new Date(a.timestamp || a.created_at || '').getTime())
-                    .map((incident) => (
-                      <div key={incident.id} className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                        <AlertTriangle className="h-5 w-5 text-red-600" />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">Incident</span>
-                            {incident.offense_number && (
-                              <Badge variant="destructive">
-                                {incident.offense_number === 1 ? '1st' : 
-                                 incident.offense_number === 2 ? '2nd' : 
-                                 incident.offense_number === 3 ? '3rd' : 
-                                 `${incident.offense_number}th`} Offense
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-600">{incident.description}</p>
-                          {incident.sanction && (
-                            <p className="text-xs text-red-600 font-medium">Sanction: {incident.sanction}</p>
-                          )}
-                          {incident.location && (
-                            <p className="text-xs text-gray-500">Location: {incident.location}</p>
-                          )}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {format(new Date(incident.timestamp || incident.created_at || ''), 'MMM dd, yyyy')}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-
-                {incidents.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    <TrendingUp className="h-12 w-12 text-green-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-600 mb-2">No Incidents Recorded</h3>
-                    <p>Excellent! You haven't had any disciplinary incidents.</p>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
-
-        {/* Counseling Alert */}
-        {studentProfile?.needs_counseling && (
-          <Card className="border-orange-300 bg-orange-50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-orange-800">
-                <AlertTriangle className="h-5 w-5" />
-                Counseling Recommended
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-orange-700 mb-2">
-                {studentProfile.counseling_reason || 'You have been flagged for a counseling session.'}
-              </p>
-              <p className="text-sm text-orange-600">
-                Please speak with your teacher, shadow parent, or visit the counseling office.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      </ResponsiveContainer>
     </div>
   );
 };

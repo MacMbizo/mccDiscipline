@@ -11,7 +11,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
-import { TrendingUp, Users, FileText, Plus, Award, AlertTriangle, Heart } from 'lucide-react';
+import { TrendingUp, Users, FileText, Plus, Award, AlertTriangle, Heart, Bell } from 'lucide-react';
 import DashboardHeader from './DashboardHeader';
 import QuickActionCards from './QuickActionCards';
 import RecentActivityCard from './RecentActivityCard';
@@ -22,6 +22,7 @@ import IncidentForm from '@/components/forms/IncidentForm';
 import MeritForm from '@/components/forms/MeritForm';
 import GlobalSearch from '@/components/common/GlobalSearch';
 import ShadowParentSection from './ShadowParentSection';
+import ShadowAlertsSection from './ShadowAlertsSection';
 import ResponsiveContainer from '@/components/mobile/ResponsiveContainer';
 import ResponsiveGrid from '@/components/mobile/ResponsiveGrid';
 
@@ -65,7 +66,7 @@ const TeacherDashboard: React.FC = () => {
         </Card>
 
         {/* Quick Actions - Enhanced Mobile Layout */}
-        <ResponsiveGrid cols={{ mobile: 2, tablet: 2, desktop: 4 }} gap="md">
+        <ResponsiveGrid cols={{ mobile: 2, tablet: 2, desktop: 5 }} gap="md">
           <Dialog>
             <DialogTrigger asChild>
               <Button className="h-20 lg:h-24 flex-col gap-2 bg-red-600 hover:bg-red-700 text-white">
@@ -107,6 +108,15 @@ const TeacherDashboard: React.FC = () => {
 
           <Button 
             variant="outline" 
+            className="h-20 lg:h-24 flex-col gap-2 border-orange-200 hover:bg-orange-50"
+            onClick={() => setActiveTab('alerts')}
+          >
+            <Bell className="h-5 w-5 lg:h-6 lg:w-6 text-orange-600" />
+            <span className="text-xs lg:text-sm font-medium">Shadow Alerts</span>
+          </Button>
+
+          <Button 
+            variant="outline" 
             className="h-20 lg:h-24 flex-col gap-2 border-purple-200 hover:bg-purple-50"
             onClick={() => setActiveTab('analytics')}
           >
@@ -118,12 +128,15 @@ const TeacherDashboard: React.FC = () => {
         {/* Enhanced Tabbed Interface */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="overflow-x-auto pb-2">
-            <TabsList className="grid grid-cols-5 w-full min-w-max lg:min-w-0 bg-white border">
+            <TabsList className="grid grid-cols-6 w-full min-w-max lg:min-w-0 bg-white border">
               <TabsTrigger value="overview" className="text-xs lg:text-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
                 Overview
               </TabsTrigger>
               <TabsTrigger value="shadow" className="text-xs lg:text-sm data-[state=active]:bg-pink-50 data-[state=active]:text-pink-700">
                 Shadow Children
+              </TabsTrigger>
+              <TabsTrigger value="alerts" className="text-xs lg:text-sm data-[state=active]:bg-orange-50 data-[state=active]:text-orange-700">
+                Shadow Alerts
               </TabsTrigger>
               <TabsTrigger value="analytics" className="text-xs lg:text-sm data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700">
                 Analytics
@@ -131,7 +144,7 @@ const TeacherDashboard: React.FC = () => {
               <TabsTrigger value="recent" className="text-xs lg:text-sm data-[state=active]:bg-green-50 data-[state=active]:text-green-700">
                 Recent Activity
               </TabsTrigger>
-              <TabsTrigger value="trends" className="text-xs lg:text-sm data-[state=active]:bg-orange-50 data-[state=active]:text-orange-700">
+              <TabsTrigger value="trends" className="text-xs lg:text-sm data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">
                 Trends
               </TabsTrigger>
             </TabsList>
@@ -198,6 +211,10 @@ const TeacherDashboard: React.FC = () => {
 
           <TabsContent value="shadow" className="space-y-6 mt-6">
             <ShadowParentSection />
+          </TabsContent>
+
+          <TabsContent value="alerts" className="space-y-6 mt-6">
+            <ShadowAlertsSection />
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6 mt-6">

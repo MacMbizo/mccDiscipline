@@ -322,6 +322,7 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string | null
+          gender: string | null
           id: string
           is_active: boolean | null
           last_login: string | null
@@ -333,6 +334,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          gender?: string | null
           id: string
           is_active?: boolean | null
           last_login?: string | null
@@ -344,6 +346,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          gender?: string | null
           id?: string
           is_active?: boolean | null
           last_login?: string | null
@@ -358,26 +361,42 @@ export type Database = {
       shadow_parent_assignments: {
         Row: {
           assigned_at: string | null
+          assigned_by: string | null
+          assignment_notes: string | null
           id: string
           is_active: boolean | null
+          priority_score: number | null
           shadow_parent_id: string
           student_id: string
         }
         Insert: {
           assigned_at?: string | null
+          assigned_by?: string | null
+          assignment_notes?: string | null
           id?: string
           is_active?: boolean | null
+          priority_score?: number | null
           shadow_parent_id: string
           student_id: string
         }
         Update: {
           assigned_at?: string | null
+          assigned_by?: string | null
+          assignment_notes?: string | null
           id?: string
           is_active?: boolean | null
+          priority_score?: number | null
           shadow_parent_id?: string
           student_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "shadow_parent_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "shadow_parent_assignments_shadow_parent_id_fkey"
             columns: ["shadow_parent_id"]
@@ -493,6 +512,27 @@ export type Database = {
       calculate_heat_score: {
         Args: { student_uuid: string }
         Returns: number
+      }
+      get_shadow_assignment_recommendations: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          student_id: string
+          student_name: string
+          grade: string
+          behavior_score: number
+          recent_incidents: number
+          recent_merits: number
+          priority_score: number
+          needs_counseling: boolean
+        }[]
+      }
+      get_teacher_shadow_capacity: {
+        Args: { teacher_id: string }
+        Returns: {
+          assigned_count: number
+          remaining_capacity: number
+          can_assign_more: boolean
+        }[]
       }
     }
     Enums: {
