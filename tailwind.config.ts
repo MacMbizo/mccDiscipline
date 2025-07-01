@@ -67,6 +67,33 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      // Enhanced responsive breakpoints
+      screens: {
+        'xs': '475px',
+        'sm': '640px',
+        'md': '768px',
+        'lg': '1024px',
+        'xl': '1280px',
+        '2xl': '1536px',
+      },
+      // Responsive spacing utilities
+      spacing: {
+        'safe-top': 'env(safe-area-inset-top)',
+        'safe-bottom': 'env(safe-area-inset-bottom)',
+        'safe-left': 'env(safe-area-inset-left)',
+        'safe-right': 'env(safe-area-inset-right)',
+      },
+      // Enhanced font sizes with clamp for fluid scaling
+      fontSize: {
+        'xs': ['0.75rem', { lineHeight: '1rem' }],
+        'sm': ['clamp(0.875rem, 2vw, 0.875rem)', { lineHeight: '1.25rem' }],
+        'base': ['clamp(1rem, 2.5vw, 1rem)', { lineHeight: '1.5rem' }],
+        'lg': ['clamp(1.125rem, 3vw, 1.125rem)', { lineHeight: '1.75rem' }],
+        'xl': ['clamp(1.25rem, 3.5vw, 1.25rem)', { lineHeight: '1.75rem' }],
+        '2xl': ['clamp(1.5rem, 4vw, 1.5rem)', { lineHeight: '2rem' }],
+        '3xl': ['clamp(1.875rem, 5vw, 1.875rem)', { lineHeight: '2.25rem' }],
+        '4xl': ['clamp(2.25rem, 6vw, 2.25rem)', { lineHeight: '2.5rem' }],
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
@@ -76,12 +103,48 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        // Mobile-specific animations
+        "slide-up": {
+          from: { transform: "translateY(100%)" },
+          to: { transform: "translateY(0)" },
+        },
+        "slide-down": {
+          from: { transform: "translateY(0)" },
+          to: { transform: "translateY(100%)" },
+        },
+        "fade-in-scale": {
+          from: { opacity: "0", transform: "scale(0.95)" },
+          to: { opacity: "1", transform: "scale(1)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "slide-up": "slide-up 0.3s ease-out",
+        "slide-down": "slide-down 0.3s ease-out",
+        "fade-in-scale": "fade-in-scale 0.2s ease-out",
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    require("tailwindcss-animate"),
+    // Add safe area support
+    function({ addUtilities }) {
+      const newUtilities = {
+        '.safe-area-inset-top': {
+          paddingTop: 'env(safe-area-inset-top)',
+        },
+        '.safe-area-inset-bottom': {
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        },
+        '.safe-area-inset-left': {
+          paddingLeft: 'env(safe-area-inset-left)',
+        },
+        '.safe-area-inset-right': {
+          paddingRight: 'env(safe-area-inset-right)',
+        },
+      }
+      addUtilities(newUtilities)
+    }
+  ],
 } satisfies Config;
