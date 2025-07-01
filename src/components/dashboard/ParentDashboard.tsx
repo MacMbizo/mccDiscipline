@@ -23,12 +23,17 @@ import {
   MessageSquare,
   Bell,
   Home,
-  School
+  School,
+  Target,
+  BookOpen
 } from 'lucide-react';
 import DashboardHeader from './DashboardHeader';
 import HeatBar from '@/components/common/HeatBar';
 import BehaviorChart from '@/components/analytics/BehaviorChart';
-import NotificationSettings from '@/components/settings/NotificationSettings';
+import MeetingScheduler from '@/components/communication/MeetingScheduler';
+import SchoolAnnouncements from '@/components/communication/SchoolAnnouncements';
+import ProgressTracking from '@/components/parent/ProgressTracking';
+import ParentNotificationSettings from '@/components/settings/ParentNotificationSettings';
 import { format } from 'date-fns';
 
 const ParentDashboard: React.FC = () => {
@@ -65,15 +70,15 @@ const ParentDashboard: React.FC = () => {
         onLogout={logout}
       />
 
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="p-4 lg:p-6 space-y-6 max-w-7xl mx-auto">
         {/* Welcome Section with Child Selector */}
-        <div className="bg-white rounded-lg p-6 shadow-sm">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-blue-900 mb-2">
+              <h1 className="text-xl lg:text-2xl font-bold text-blue-900 mb-2">
                 Welcome back, {user.name}!
               </h1>
-              <p className="text-gray-600">
+              <p className="text-gray-600 text-sm lg:text-base">
                 Monitor your child's behavior progress and school activities.
               </p>
             </div>
@@ -105,46 +110,46 @@ const ParentDashboard: React.FC = () => {
         {currentChild && (
           <>
             {/* Child Overview Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
               <Card>
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-blue-600">{currentChild.grade}</div>
-                  <div className="text-sm text-gray-600">Grade Level</div>
+                <CardContent className="p-3 lg:p-4 text-center">
+                  <div className="text-lg lg:text-2xl font-bold text-blue-600">{currentChild.grade}</div>
+                  <div className="text-xs lg:text-sm text-gray-600">Grade Level</div>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-4 text-center">
+                <CardContent className="p-3 lg:p-4 text-center">
                   <div className="flex items-center justify-center gap-1 mb-1">
                     {currentChild.boarding_status === 'boarder' ? (
-                      <Home className="h-4 w-4 text-blue-600" />
+                      <Home className="h-3 w-3 lg:h-4 lg:w-4 text-blue-600" />
                     ) : (
-                      <School className="h-4 w-4 text-green-600" />
+                      <School className="h-3 w-3 lg:h-4 lg:w-4 text-green-600" />
                     )}
                   </div>
-                  <div className="text-sm font-medium">
+                  <div className="text-xs lg:text-sm font-medium">
                     {currentChild.boarding_status === 'boarder' ? 'Boarder' : 'Day Scholar'}
                   </div>
                   <div className="text-xs text-gray-600">Student Type</div>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-green-600">{totalMeritPoints}</div>
-                  <div className="text-sm text-gray-600">Merit Points</div>
+                <CardContent className="p-3 lg:p-4 text-center">
+                  <div className="text-lg lg:text-2xl font-bold text-green-600">{totalMeritPoints}</div>
+                  <div className="text-xs lg:text-sm text-gray-600">Merit Points</div>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-red-600">{incidents.length}</div>
-                  <div className="text-sm text-gray-600">Incidents</div>
+                <CardContent className="p-3 lg:p-4 text-center">
+                  <div className="text-lg lg:text-2xl font-bold text-red-600">{incidents.length}</div>
+                  <div className="text-xs lg:text-sm text-gray-600">Incidents</div>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-yellow-600">
+                <CardContent className="p-3 lg:p-4 text-center">
+                  <div className="text-lg lg:text-2xl font-bold text-yellow-600">
                     {(currentChild.behavior_score || 0).toFixed(1)}
                   </div>
-                  <div className="text-sm text-gray-600">Heat Score</div>
+                  <div className="text-xs lg:text-sm text-gray-600">Heat Score</div>
                 </CardContent>
               </Card>
             </div>
@@ -154,13 +159,13 @@ const ParentDashboard: React.FC = () => {
               <Card className="border-orange-300 bg-orange-50">
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
-                    <AlertTriangle className="h-5 w-5 text-orange-600 mt-0.5" />
+                    <AlertTriangle className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
                       <div className="font-medium text-orange-800">Counseling Recommended</div>
                       <p className="text-sm text-orange-700 mt-1">
                         {currentChild.counseling_reason || 'Your child has been flagged for counseling support.'}
                       </p>
-                      <div className="flex gap-2 mt-3">
+                      <div className="flex flex-col sm:flex-row gap-2 mt-3">
                         <Button size="sm" className="bg-orange-600 hover:bg-orange-700 text-white">
                           Contact School Counselor
                         </Button>
@@ -177,8 +182,8 @@ const ParentDashboard: React.FC = () => {
             {/* Heat Score Visualization */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-sm lg:text-base">
+                  <TrendingUp className="h-4 w-4 lg:h-5 lg:w-5" />
                   {currentChild.name}'s Behavior Score
                 </CardTitle>
               </CardHeader>
@@ -200,23 +205,26 @@ const ParentDashboard: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Tabbed Content */}
+            {/* Enhanced Tabbed Content */}
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-5">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="incidents">Incidents</TabsTrigger>
-                <TabsTrigger value="merits">Merits</TabsTrigger>
-                <TabsTrigger value="communication">Communication</TabsTrigger>
-                <TabsTrigger value="settings">Settings</TabsTrigger>
-              </TabsList>
+              <div className="overflow-x-auto pb-2">
+                <TabsList className="grid grid-cols-6 w-full min-w-max lg:min-w-0">
+                  <TabsTrigger value="overview" className="text-xs lg:text-sm">Overview</TabsTrigger>
+                  <TabsTrigger value="progress" className="text-xs lg:text-sm">Progress</TabsTrigger>
+                  <TabsTrigger value="incidents" className="text-xs lg:text-sm">Incidents</TabsTrigger>
+                  <TabsTrigger value="merits" className="text-xs lg:text-sm">Merits</TabsTrigger>
+                  <TabsTrigger value="communication" className="text-xs lg:text-sm">Communication</TabsTrigger>
+                  <TabsTrigger value="settings" className="text-xs lg:text-sm">Settings</TabsTrigger>
+                </TabsList>
+              </div>
 
               <TabsContent value="overview" className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Recent Activity */}
                   <Card>
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Calendar className="h-5 w-5" />
+                      <CardTitle className="flex items-center gap-2 text-sm lg:text-base">
+                        <Calendar className="h-4 w-4 lg:h-5 lg:w-5" />
                         Recent Activity
                       </CardTitle>
                     </CardHeader>
@@ -225,25 +233,25 @@ const ParentDashboard: React.FC = () => {
                         {behaviorRecords.slice(0, 5).map((record) => (
                           <div key={record.id} className="flex items-center gap-3 p-3 border rounded-lg">
                             {record.type === 'merit' ? (
-                              <Award className="h-5 w-5 text-green-600" />
+                              <Award className="h-4 w-4 lg:h-5 lg:w-5 text-green-600 flex-shrink-0" />
                             ) : (
-                              <AlertTriangle className="h-5 w-5 text-red-600" />
+                              <AlertTriangle className="h-4 w-4 lg:h-5 lg:w-5 text-red-600 flex-shrink-0" />
                             )}
-                            <div className="flex-1">
-                              <div className="font-medium">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-sm">
                                 {record.type === 'merit' ? 'Merit Award' : 'Incident Report'}
                               </div>
-                              <div className="text-sm text-gray-600">{record.description}</div>
+                              <div className="text-sm text-gray-600 truncate">{record.description}</div>
                               <div className="text-xs text-gray-500">
                                 {format(new Date(record.timestamp!), 'MMM dd, yyyy')}
                               </div>
                             </div>
                             {record.type === 'merit' && (
-                              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                              <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
                                 +{record.points} pts
                               </Badge>
                             )}
-                            <Badge variant="outline">
+                            <Badge variant="outline" className="text-xs">
                               {record.location}
                             </Badge>
                           </div>
@@ -255,20 +263,20 @@ const ParentDashboard: React.FC = () => {
                   {/* Progress Summary */}
                   <Card>
                     <CardHeader>
-                      <CardTitle>This Month's Summary</CardTitle>
+                      <CardTitle className="text-sm lg:text-base">This Month's Summary</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
                         <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                          <span className="text-green-800">Merit Points Earned</span>
+                          <span className="text-green-800 text-sm">Merit Points Earned</span>
                           <span className="font-bold text-green-800">+{totalMeritPoints}</span>
                         </div>
                         <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
-                          <span className="text-red-800">Incidents Reported</span>
+                          <span className="text-red-800 text-sm">Incidents Reported</span>
                           <span className="font-bold text-red-800">{incidents.length}</span>
                         </div>
                         <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                          <span className="text-blue-800">Overall Trend</span>
+                          <span className="text-blue-800 text-sm">Overall Trend</span>
                           <span className="font-bold text-blue-800">
                             {totalMeritPoints > incidents.length ? 'Improving' : 'Needs Attention'}
                           </span>
@@ -281,12 +289,16 @@ const ParentDashboard: React.FC = () => {
                 {/* Behavior Trends Chart */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Behavior Trends</CardTitle>
+                    <CardTitle className="text-sm lg:text-base">Behavior Trends</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <BehaviorChart type="line" title="Monthly Progress" />
                   </CardContent>
                 </Card>
+              </TabsContent>
+
+              <TabsContent value="progress" className="space-y-6">
+                <ProgressTracking studentId={currentChild.id} studentName={currentChild.name} />
               </TabsContent>
 
               <TabsContent value="incidents" className="space-y-6">
@@ -394,28 +406,25 @@ const ParentDashboard: React.FC = () => {
               <TabsContent value="communication" className="space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <MessageSquare className="h-5 w-5" />
+                    <CardTitle className="flex items-center gap-2 text-sm lg:text-base">
+                      <MessageSquare className="h-4 w-4 lg:h-5 lg:w-5" />
                       Communication Center
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Button variant="outline" className="h-20 flex-col gap-2">
-                        <MessageSquare className="h-6 w-6" />
-                        Schedule Parent-Teacher Meeting
-                      </Button>
-                      <Button variant="outline" className="h-20 flex-col gap-2">
-                        <Bell className="h-6 w-6" />
-                        View School Announcements
-                      </Button>
+                      <MeetingScheduler 
+                        studentId={currentChild.id} 
+                        studentName={currentChild.name} 
+                      />
+                      <SchoolAnnouncements />
                     </div>
                   </CardContent>
                 </Card>
               </TabsContent>
 
               <TabsContent value="settings" className="space-y-6">
-                <NotificationSettings />
+                <ParentNotificationSettings />
               </TabsContent>
             </Tabs>
           </>

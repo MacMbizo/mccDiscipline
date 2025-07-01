@@ -11,7 +11,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
-import { TrendingUp, Users, FileText, Plus, Award, AlertTriangle } from 'lucide-react';
+import { TrendingUp, Users, FileText, Plus, Award, AlertTriangle, Heart } from 'lucide-react';
 import DashboardHeader from './DashboardHeader';
 import QuickActionCards from './QuickActionCards';
 import RecentActivityCard from './RecentActivityCard';
@@ -21,6 +21,9 @@ import BehaviorChart from '@/components/analytics/BehaviorChart';
 import IncidentForm from '@/components/forms/IncidentForm';
 import MeritForm from '@/components/forms/MeritForm';
 import GlobalSearch from '@/components/common/GlobalSearch';
+import ShadowParentSection from './ShadowParentSection';
+import ResponsiveContainer from '@/components/mobile/ResponsiveContainer';
+import ResponsiveGrid from '@/components/mobile/ResponsiveGrid';
 
 const TeacherDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -41,31 +44,33 @@ const TeacherDashboard: React.FC = () => {
         onLogout={logout}
       />
 
-      <div className="p-4 lg:p-6 space-y-6 max-w-full">
-        {/* Welcome Section with Search */}
-        <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="flex-1">
-              <h1 className="text-xl lg:text-2xl font-bold text-blue-900 mb-2">
-                Welcome back, {user.name}!
-              </h1>
-              <p className="text-gray-600 text-sm lg:text-base">
-                Manage student behavior records and track class progress.
-              </p>
+      <ResponsiveContainer className="py-4 lg:py-6 space-y-6">
+        {/* Welcome Section with Enhanced Search */}
+        <Card className="bg-white shadow-sm">
+          <CardContent className="p-4 lg:p-6">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex-1">
+                <h1 className="text-xl lg:text-2xl font-bold text-blue-900 mb-2">
+                  Welcome back, {user.name}!
+                </h1>
+                <p className="text-gray-600 text-sm lg:text-base">
+                  Manage student behavior records, track class progress, and monitor your shadow children.
+                </p>
+              </div>
+              <div className="w-full lg:w-96">
+                <GlobalSearch />
+              </div>
             </div>
-            <div className="w-full lg:w-96">
-              <GlobalSearch />
-            </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        {/* Quick Actions - Mobile Optimized */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+        {/* Quick Actions - Enhanced Mobile Layout */}
+        <ResponsiveGrid cols={{ mobile: 2, tablet: 2, desktop: 4 }} gap="md">
           <Dialog>
             <DialogTrigger asChild>
-              <Button className="h-20 lg:h-24 flex-col gap-2 bg-red-600 hover:bg-red-700">
+              <Button className="h-20 lg:h-24 flex-col gap-2 bg-red-600 hover:bg-red-700 text-white">
                 <AlertTriangle className="h-5 w-5 lg:h-6 lg:w-6" />
-                <span className="text-xs lg:text-sm">Log Incident</span>
+                <span className="text-xs lg:text-sm font-medium">Log Incident</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -78,9 +83,9 @@ const TeacherDashboard: React.FC = () => {
 
           <Dialog>
             <DialogTrigger asChild>
-              <Button className="h-20 lg:h-24 flex-col gap-2 bg-green-600 hover:bg-green-700">
+              <Button className="h-20 lg:h-24 flex-col gap-2 bg-green-600 hover:bg-green-700 text-white">
                 <Award className="h-5 w-5 lg:h-6 lg:w-6" />
-                <span className="text-xs lg:text-sm">Award Merit</span>
+                <span className="text-xs lg:text-sm font-medium">Award Merit</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -93,42 +98,63 @@ const TeacherDashboard: React.FC = () => {
 
           <Button 
             variant="outline" 
-            className="h-20 lg:h-24 flex-col gap-2"
-            onClick={() => setActiveTab('analytics')}
+            className="h-20 lg:h-24 flex-col gap-2 border-blue-200 hover:bg-blue-50"
+            onClick={() => setActiveTab('shadow')}
           >
-            <TrendingUp className="h-5 w-5 lg:h-6 lg:w-6 text-blue-600" />
-            <span className="text-xs lg:text-sm">View Analytics</span>
+            <Heart className="h-5 w-5 lg:h-6 lg:w-6 text-pink-600" />
+            <span className="text-xs lg:text-sm font-medium">Shadow Children</span>
           </Button>
 
           <Button 
             variant="outline" 
-            className="h-20 lg:h-24 flex-col gap-2"
-            onClick={() => setActiveTab('recent')}
+            className="h-20 lg:h-24 flex-col gap-2 border-purple-200 hover:bg-purple-50"
+            onClick={() => setActiveTab('analytics')}
           >
-            <FileText className="h-5 w-5 lg:h-6 lg:w-6 text-purple-600" />
-            <span className="text-xs lg:text-sm">Recent Records</span>
+            <TrendingUp className="h-5 w-5 lg:h-6 lg:w-6 text-purple-600" />
+            <span className="text-xs lg:text-sm font-medium">Analytics</span>
           </Button>
-        </div>
+        </ResponsiveGrid>
 
-        {/* Tabbed Interface */}
+        {/* Enhanced Tabbed Interface */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="overflow-x-auto pb-2">
-            <TabsList className="grid grid-cols-4 w-full min-w-max lg:min-w-0">
-              <TabsTrigger value="overview" className="text-xs lg:text-sm">Overview</TabsTrigger>
-              <TabsTrigger value="analytics" className="text-xs lg:text-sm">Analytics</TabsTrigger>
-              <TabsTrigger value="recent" className="text-xs lg:text-sm">Recent Activity</TabsTrigger>
-              <TabsTrigger value="trends" className="text-xs lg:text-sm">Trends</TabsTrigger>
+            <TabsList className="grid grid-cols-5 w-full min-w-max lg:min-w-0 bg-white border">
+              <TabsTrigger value="overview" className="text-xs lg:text-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="shadow" className="text-xs lg:text-sm data-[state=active]:bg-pink-50 data-[state=active]:text-pink-700">
+                Shadow Children
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className="text-xs lg:text-sm data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700">
+                Analytics
+              </TabsTrigger>
+              <TabsTrigger value="recent" className="text-xs lg:text-sm data-[state=active]:bg-green-50 data-[state=active]:text-green-700">
+                Recent Activity
+              </TabsTrigger>
+              <TabsTrigger value="trends" className="text-xs lg:text-sm data-[state=active]:bg-orange-50 data-[state=active]:text-orange-700">
+                Trends
+              </TabsTrigger>
             </TabsList>
           </div>
 
-          <TabsContent value="overview" className="space-y-6">
-            {/* Analytics Overview */}
+          <TabsContent value="overview" className="space-y-6 mt-6">
+            {/* Class Analytics Overview */}
             <section>
-              <h2 className="text-lg lg:text-xl font-semibold text-blue-900 mb-4">Class Analytics Overview</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg lg:text-xl font-semibold text-blue-900">Class Analytics Overview</h2>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setActiveTab('analytics')}
+                  className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                >
+                  View Detailed Analytics
+                </Button>
+              </div>
               <AnalyticsOverview />
             </section>
 
-            {/* Heat Bar Example */}
+            {/* Class Average Heat Score */}
             <section>
               <Card>
                 <CardHeader>
@@ -147,24 +173,45 @@ const TeacherDashboard: React.FC = () => {
                   <p className="text-sm text-gray-600 mt-2">
                     Lower scores indicate better behavior. Your class average is in the "Warning" zone.
                   </p>
+                  <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-4 text-center">
+                    <div className="p-3 bg-green-50 rounded-lg">
+                      <div className="text-lg font-bold text-green-600">12</div>
+                      <div className="text-xs text-green-600">Excellent (0-3)</div>
+                    </div>
+                    <div className="p-3 bg-blue-50 rounded-lg">
+                      <div className="text-lg font-bold text-blue-600">8</div>
+                      <div className="text-xs text-blue-600">Good (4-5)</div>
+                    </div>
+                    <div className="p-3 bg-yellow-50 rounded-lg">
+                      <div className="text-lg font-bold text-yellow-600">5</div>
+                      <div className="text-xs text-yellow-600">Warning (6-7)</div>
+                    </div>
+                    <div className="p-3 bg-red-50 rounded-lg">
+                      <div className="text-lg font-bold text-red-600">3</div>
+                      <div className="text-xs text-red-600">Critical (8+)</div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </section>
           </TabsContent>
 
-          <TabsContent value="analytics" className="space-y-6">
+          <TabsContent value="shadow" className="space-y-6 mt-6">
+            <ShadowParentSection />
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-6 mt-6">
             <AnalyticsOverview />
           </TabsContent>
 
-          <TabsContent value="recent" className="space-y-6">
+          <TabsContent value="recent" className="space-y-6 mt-6">
             <RecentActivityCard />
           </TabsContent>
 
-          <TabsContent value="trends" className="space-y-6">
-            {/* Behavior Trends Chart */}
+          <TabsContent value="trends" className="space-y-6 mt-6">
             <section>
               <h2 className="text-lg lg:text-xl font-semibold text-blue-900 mb-4">Behavior Trends</h2>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <ResponsiveGrid cols={{ mobile: 1, tablet: 1, desktop: 2 }} gap="lg">
                 <BehaviorChart 
                   type="bar" 
                   title="Monthly Incidents vs Merits"
@@ -173,11 +220,11 @@ const TeacherDashboard: React.FC = () => {
                   type="line" 
                   title="Heat Score Trend"
                 />
-              </div>
+              </ResponsiveGrid>
             </section>
           </TabsContent>
         </Tabs>
-      </div>
+      </ResponsiveContainer>
     </div>
   );
 };
