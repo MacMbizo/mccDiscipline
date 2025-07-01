@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Toaster } from '@/components/ui/sonner';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import ProfileErrorHandler from './components/common/ProfileErrorHandler';
 
 // Dashboard Components
 import AdminDashboard from './components/dashboard/AdminDashboard';
@@ -18,6 +19,7 @@ import LoginScreen from './components/auth/LoginScreen';
 
 // Other Components
 import NotFound from './pages/NotFound';
+import ProfileErrorPage from './pages/ProfileErrorPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,35 +29,45 @@ const queryClient = new QueryClient({
         if (error?.code === 'PGRST301' || error?.message?.includes('JWT')) {
           return false;
         }
+        
+        // Retry more times for profile-related queries
+        if (error?.message?.includes('profile') || error?.message?.includes('student')) {
+          return failureCount < 5; // More retries for profile issues
+        }
+        
         return failureCount < 3;
       },
+      retryDelay: attemptIndex => {
+        // Exponential backoff with jitter for more resilience
+        const baseDelay = Math.min(1000 * 2 ** attemptIndex, 30000); // Max 30 seconds
+        return baseDelay + Math.random() * 1000; // Add up to 1s of jitter
+      },
       staleTime: 5 * 60 * 1000, // 5 minutes
+      cacheTime: 10 * 60 * 1000, // 10 minutes
     },
   },
 });
 
 const AppContent: React.FC = () => {
-  const { user, isLoading, error } = useAuth();
+  const { user, isLoading, error, isPersistentError, handleProfileError } = useAuth();
 
   console.log('AppContent render - isLoading:', isLoading, 'user:', user?.email || 'undefined', 'role:', user?.role || 'undefined');
 
   if (error) {
     console.error('Auth error in AppContent:', error);
+    
+    // For persistent errors, we can redirect to the dedicated error page
+    if (isPersistentError && handleProfileError) {
+      handleProfileError();
+    }
+    
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full text-center">
-          <h2 className="text-xl font-semibold text-red-600 mb-4">Authentication Error</h2>
-          <p className="text-gray-600 mb-4">
-            There was a problem with authentication. Please try logging in again.
-          </p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Refresh Page
-          </button>
-        </div>
-      </div>
+      <ProfileErrorHandler 
+        error={error}
+        title={error.includes('profile') ? 'Unable to Load Profile' : 'Authentication Error'}
+        showErrorDetails={false}
+        isPersistentError={isPersistentError}
+      />
     );
   }
 
@@ -112,6 +124,7 @@ const AppContent: React.FC = () => {
     <Routes>
       <Route path="/" element={getDashboardComponent()} />
       <Route path="/login" element={<Navigate to="/" replace />} />
+      <Route path="/profile-error" element={<ProfileErrorPage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

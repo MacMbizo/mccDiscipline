@@ -3,6 +3,7 @@ import React, { Component, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import ProfileErrorHandler from './ProfileErrorHandler';
 
 interface Props {
   children: ReactNode;
@@ -26,10 +27,22 @@ class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('Error caught by ErrorBoundary:', error, errorInfo);
+    
+    // Log specific error types for better debugging
+    if (error.message.includes('profile') || error.message.includes('student')) {
+      console.warn('Profile loading error detected. This may be a temporary network issue.');
+    }
   }
 
   handleReset = () => {
     this.setState({ hasError: false, error: null });
+  };
+
+  isProfileError = () => {
+    return this.state.error && 
+      (this.state.error.message.includes('profile') || 
+       this.state.error.message.includes('student') ||
+       this.state.error.message.includes('Unable to load'));
   };
 
   render() {
@@ -38,6 +51,29 @@ class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
+      // Use ProfileErrorHandler for profile-related errors
+      if (this.isProfileError() && this.state.error) {
+        // Get error count from session storage to determine if it's persistent
+        const errorCount = parseInt(sessionStorage.getItem('profileErrorCount') || '0');
+        sessionStorage.setItem('profileErrorCount', (errorCount + 1).toString());
+        const isPersistentError = errorCount >= 3;
+        
+        // For persistent errors, redirect to the dedicated error page
+        if (isPersistentError) {
+          window.location.href = '/profile-error';
+          return null;
+        }
+        
+        return (
+          <ProfileErrorHandler 
+            error={this.state.error}
+            onRetry={this.handleReset}
+            title="Unable to Load Profile"
+          />
+        );
+      }
+
+      // Default error UI for non-profile errors
       return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
           <Card className="max-w-md w-full">
@@ -61,7 +97,7 @@ class ErrorBoundary extends Component<Props, State> {
                 </details>
               )}
               
-              <div className="flex gap-2 justify-center">
+              <div className="flex flex-col sm:flex-row gap-2 justify-center">
                 <Button onClick={this.handleReset} variant="outline">
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Try Again

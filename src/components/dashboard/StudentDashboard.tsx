@@ -13,20 +13,27 @@ import {
   AlertTriangle, 
   TrendingUp,
   User,
-  Heart
+  Heart,
+  RefreshCw
 } from 'lucide-react';
 import DashboardHeader from './DashboardHeader';
 import HeatBar from '@/components/common/HeatBar';
 import { format } from 'date-fns';
+import { Button } from '@/components/ui/button';
 
 const StudentDashboard: React.FC = () => {
   const { user, logout } = useAuth();
 
-  // Get student profile
-  const { data: studentProfile, isLoading: studentLoading, error: studentError } = useQuery({
+  // Get student profile with better error handling
+  const { data: studentProfile, isLoading: studentLoading, error: studentError, refetch: refetchProfile } = useQuery({
     queryKey: ['student-profile', user?.id],
     queryFn: async () => {
-      if (!user?.id) throw new Error('No user ID');
+      if (!user?.id) {
+        console.log('No user ID available for profile fetch');
+        return null;
+      }
+      
+      console.log('Fetching student profile for user:', user.id);
       
       const { data, error } = await supabase
         .from('students')
@@ -35,15 +42,21 @@ const StudentDashboard: React.FC = () => {
           shadow_parent:profiles!shadow_parent_id(name)
         `)
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
       
       if (error) {
         console.error('Error fetching student profile:', error);
-        throw error;
+        // Don't throw error immediately, return null and let the component handle it
+        return null;
       }
+      
+      console.log('Student profile fetched:', data);
       return data;
     },
     enabled: !!user?.id,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Get behavior records for this student
@@ -63,25 +76,55 @@ const StudentDashboard: React.FC = () => {
     );
   }
 
-  if (studentError) {
+  // Show loading state while fetching data
+  if (studentLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <DashboardHeader
+          title="Student Dashboard"
+          userName={user.name}
+          onLogout={logout}
+        />
+        <div className="p-6 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading your profile...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Only show error if we've tried to fetch and there's a real error, not just missing data
+  if (studentError && !studentProfile) {
     console.error('Student dashboard error:', studentError);
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-6 text-center">
-            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">Unable to Load Profile</h2>
-            <p className="text-gray-600 mb-4">
-              There was an issue loading your student profile. Please contact your administrator.
-            </p>
-            <button 
-              onClick={logout}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Return to Login
-            </button>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-gray-50">
+        <DashboardHeader
+          title="Student Dashboard"
+          userName={user.name}
+          onLogout={logout}
+        />
+        <div className="p-6 flex items-center justify-center">
+          <Card className="w-full max-w-md">
+            <CardContent className="p-6 text-center">
+              <AlertTriangle className="h-12 w-12 text-orange-500 mx-auto mb-4" />
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Profile Loading Issue</h2>
+              <p className="text-gray-600 mb-4">
+                There was a temporary issue loading your profile. This might be because your student record hasn't been set up yet.
+              </p>
+              <div className="space-y-2">
+                <Button onClick={() => refetchProfile()} className="w-full">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Try Again
+                </Button>
+                <Button variant="outline" onClick={logout} className="w-full">
+                  Return to Login
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -122,7 +165,7 @@ const StudentDashboard: React.FC = () => {
                   Welcome back, {studentProfile?.name || user.name}!
                 </h1>
                 <div className="flex items-center gap-4 mt-2">
-                  {studentProfile && (
+                  {studentProfile ? (
                     <>
                       <Badge variant="outline">{studentProfile.grade}</Badge>
                       {studentProfile.gender && (
@@ -140,6 +183,8 @@ const StudentDashboard: React.FC = () => {
                         </div>
                       )}
                     </>
+                  ) : (
+                    <Badge variant="secondary">Profile Incomplete</Badge>
                   )}
                 </div>
               </div>

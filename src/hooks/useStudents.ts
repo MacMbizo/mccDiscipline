@@ -28,9 +28,14 @@ export const useStudent = (studentId: string) => {
         .from('students')
         .select('*')
         .eq('id', studentId)
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
+      
+      if (!data) {
+        throw new Error(`Student with ID ${studentId} not found`);
+      }
+      
       return data as Student;
     },
     enabled: !!studentId,

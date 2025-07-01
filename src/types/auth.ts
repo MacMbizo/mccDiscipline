@@ -16,4 +16,6 @@ export interface AuthContextType {
   logout: () => Promise<void>;
   isLoading: boolean;
   error: string | null;
+  isPersistentError?: boolean;
+  handleProfileError?: () => void;
 }
