@@ -1,5 +1,9 @@
 # Project info
 
+![License](https://img.shields.io/badge/License-Proprietary-blue.svg)
+
+**This software is proprietary and confidential.** Unauthorized copying, distribution, or external use is strictly prohibited.
+
 ## How can I edit this code?
 
 There are several ways of editing your application.
@@ -48,4 +52,4 @@ This project is built with:
 - TypeScript
 - React
 - shadcn-ui
-- Tailwind CS
+- Tailwind CSS
