@@ -4,575 +4,600 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Edit, Trash2, Settings, Award, AlertTriangle } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast';
+import { 
+  Settings, 
+  Bell, 
+  AlertTriangle, 
+  Save,
+  Mail,
+  MessageSquare,
+  Smartphone,
+  Shield,
+  Database,
+  Clock
+} from 'lucide-react';
 
-interface MeritTier {
-  tier: string;
-  points: number;
-  description: string;
-  color: string;
-}
-
-interface Misdemeanor {
-  id: string;
-  name: string;
-  location: string;
-  category: string;
-  severity_level: number;
-  sanctions: Record<string, string>;
-  status: string;
+interface SystemConfig {
+  notifications: {
+    emailEnabled: boolean;
+    smsEnabled: boolean;
+    pushEnabled: boolean;
+    digestFrequency: 'immediate' | 'daily' | 'weekly';
+    quietHours: {
+      enabled: boolean;
+      startTime: string;
+      endTime: string;
+    };
+  };
+  thresholds: {
+    counselingHeatScore: number;
+    criticalHeatScore: number;
+    parentNotificationThreshold: number;
+    maxIncidentsPerWeek: number;
+    interventionTriggerDays: number;
+  };
+  automation: {
+    autoParentNotification: boolean;
+    autoEscalation: boolean;
+    autoReportGeneration: boolean;
+    escalationDelayHours: number;
+  };
+  security: {
+    sessionTimeout: number;
+    passwordExpiry: number;
+    maxLoginAttempts: number;
+    twoFactorRequired: boolean;
+  };
+  system: {
+    maintenanceMode: boolean;
+    backupFrequency: 'daily' | 'weekly' | 'monthly';
+    logRetentionDays: number;
+    cacheExpiryHours: number;
+  };
 }
 
 const SystemConfiguration: React.FC = () => {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const [isMeritDialogOpen, setIsMeritDialogOpen] = useState(false);
-  const [isMisdemeanorDialogOpen, setIsMisdemeanorDialogOpen] = useState(false);
-  const [selectedMisdemeanor, setSelectedMisdemeanor] = useState<Misdemeanor | null>(null);
-  
-  // Merit tier management
-  const [meritTiers, setMeritTiers] = useState<MeritTier[]>([
-    { tier: 'Bronze', points: 1, description: 'Basic positive behavior recognition', color: '#CD7F32' },
-    { tier: 'Silver', points: 2, description: 'Good behavior and participation', color: '#C0C0C0' },
-    { tier: 'Gold', points: 3, description: 'Excellent behavior and leadership', color: '#FFD700' },
-    { tier: 'Diamond', points: 3.5, description: 'Outstanding achievement', color: '#B9F2FF' },
-    { tier: 'Platinum', points: 4, description: 'Exceptional conduct and service', color: '#E5E4E2' }
-  ]);
-  
-  const [misdemeanorForm, setMisdemeanorForm] = useState({
-    name: '',
-    location: 'Main School',
-    category: '',
-    severity_level: 1,
-    sanctions: {
-      '1st': '',
-      '2nd': '',
-      '3rd': ''
-    }
-  });
-
-  // Fetch misdemeanors
-  const { data: misdemeanors, isLoading } = useQuery({
-    queryKey: ['admin-misdemeanors'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('misdemeanors')
-        .select('*')
-        .order('name');
-      
-      if (error) throw error;
-      return data as Misdemeanor[];
-    },
-    enabled: user?.role === 'admin'
-  });
-
-  // Create/Update misdemeanor mutation
-  const saveMisdemeanorMutation = useMutation({
-    mutationFn: async (misdemeanorData: any) => {
-      if (selectedMisdemeanor) {
-        // Update existing
-        const { error } = await supabase
-          .from('misdemeanors')
-          .update(misdemeanorData)
-          .eq('id', selectedMisdemeanor.id);
-        if (error) throw error;
-      } else {
-        // Create new
-        const { error } = await supabase
-          .from('misdemeanors')
-          .insert(misdemeanorData);
-        if (error) throw error;
+  const [config, setConfig] = useState<SystemConfig>({
+    notifications: {
+      emailEnabled: true,
+      smsEnabled: false,
+      pushEnabled: true,
+      digestFrequency: 'daily',
+      quietHours: {
+        enabled: true,
+        startTime: '22:00',
+        endTime: '06:00'
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-misdemeanors'] });
-      setIsMisdemeanorDialogOpen(false);
-      setSelectedMisdemeanor(null);
-      setMisdemeanorForm({
-        name: '',
-        location: 'Main School',
-        category: '',
-        severity_level: 1,
-        sanctions: { '1st': '', '2nd': '', '3rd': '' }
+    thresholds: {
+      counselingHeatScore: 7.0,
+      criticalHeatScore: 9.0,
+      parentNotificationThreshold: 3,
+      maxIncidentsPerWeek: 5,
+      interventionTriggerDays: 7
+    },
+    automation: {
+      autoParentNotification: true,
+      autoEscalation: true,
+      autoReportGeneration: false,
+      escalationDelayHours: 24
+    },
+    security: {
+      sessionTimeout: 30,
+      passwordExpiry: 90,
+      maxLoginAttempts: 5,
+      twoFactorRequired: false
+    },
+    system: {
+      maintenanceMode: false,
+      backupFrequency: 'daily',
+      logRetentionDays: 365,
+      cacheExpiryHours: 24
+    }
+  });
+
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const { toast } = useToast();
+
+  const updateConfig = (section: keyof SystemConfig, updates: Partial<SystemConfig[keyof SystemConfig]>) => {
+    setConfig(prev => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        ...updates
+      }
+    }));
+    setHasUnsavedChanges(true);
+  };
+
+  const saveConfiguration = async () => {
+    try {
+      // In a real implementation, this would save to the database
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setHasUnsavedChanges(false);
+      toast({
+        title: "Configuration Saved",
+        description: "System configuration has been updated successfully",
       });
-      toast.success(selectedMisdemeanor ? 'Misdemeanor updated successfully' : 'Misdemeanor created successfully');
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to save misdemeanor');
+    } catch (error) {
+      toast({
+        title: "Save Failed",
+        description: "There was an error saving the configuration",
+        variant: "destructive"
+      });
     }
-  });
+  };
 
-  // Delete misdemeanor mutation
-  const deleteMisdemeanorMutation = useMutation({
-    mutationFn: async (misdemeanorId: string) => {
-      const { error } = await supabase
-        .from('misdemeanors')
-        .delete()
-        .eq('id', misdemeanorId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-misdemeanors'] });
-      toast.success('Misdemeanor deleted successfully');
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to delete misdemeanor');
-    }
-  });
-
-  const handleEditMisdemeanor = (misdemeanor: Misdemeanor) => {
-    setSelectedMisdemeanor(misdemeanor);
-    setMisdemeanorForm({
-      name: misdemeanor.name,
-      location: misdemeanor.location,
-      category: misdemeanor.category,
-      severity_level: misdemeanor.severity_level,
-      sanctions: misdemeanor.sanctions as any
+  const resetToDefaults = () => {
+    // Reset to default configuration
+    setConfig({
+      notifications: {
+        emailEnabled: true,
+        smsEnabled: false,
+        pushEnabled: true,
+        digestFrequency: 'daily',
+        quietHours: {
+          enabled: true,
+          startTime: '22:00',
+          endTime: '06:00'
+        }
+      },
+      thresholds: {
+        counselingHeatScore: 7.0,
+        criticalHeatScore: 9.0,
+        parentNotificationThreshold: 3,
+        maxIncidentsPerWeek: 5,
+        interventionTriggerDays: 7
+      },
+      automation: {
+        autoParentNotification: true,
+        autoEscalation: true,
+        autoReportGeneration: false,
+        escalationDelayHours: 24
+      },
+      security: {
+        sessionTimeout: 30,
+        passwordExpiry: 90,
+        maxLoginAttempts: 5,
+        twoFactorRequired: false
+      },
+      system: {
+        maintenanceMode: false,
+        backupFrequency: 'daily',
+        logRetentionDays: 365,
+        cacheExpiryHours: 24
+      }
     });
-    setIsMisdemeanorDialogOpen(true);
+    setHasUnsavedChanges(true);
+    
+    toast({
+      title: "Reset to Defaults",
+      description: "Configuration has been reset to default values",
+    });
   };
-
-  const handleSaveMisdemeanor = () => {
-    if (!misdemeanorForm.name || !misdemeanorForm.category) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-    saveMisdemeanorMutation.mutate(misdemeanorForm);
-  };
-
-  const handleDeleteMisdemeanor = (misdemeanorId: string) => {
-    if (window.confirm('Are you sure you want to delete this misdemeanor? This action cannot be undone.')) {
-      deleteMisdemeanorMutation.mutate(misdemeanorId);
-    }
-  };
-
-  const updateMeritTier = (index: number, field: keyof MeritTier, value: any) => {
-    const updatedTiers = [...meritTiers];
-    updatedTiers[index] = { ...updatedTiers[index], [field]: value };
-    setMeritTiers(updatedTiers);
-  };
-
-  const saveMeritConfiguration = () => {
-    // In a real application, this would save to the database
-    toast.success('Merit tier configuration saved successfully');
-    setIsMeritDialogOpen(false);
-  };
-
-  if (user?.role !== 'admin') {
-    return (
-      <div className="text-center py-8">
-        <p className="text-gray-500">Access denied. Admin privileges required.</p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-blue-900 flex items-center gap-2">
-          <Settings className="h-6 w-6" />
-          System Configuration
-        </h2>
-        <p className="text-gray-600">Configure merit tiers, misdemeanors, and system rules</p>
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold">System Configuration</h2>
+          <p className="text-gray-600">Configure system settings, notifications, and behavioral thresholds</p>
+        </div>
+        
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={resetToDefaults}>
+            Reset to Defaults
+          </Button>
+          <Button onClick={saveConfiguration} disabled={!hasUnsavedChanges}>
+            <Save className="h-4 w-4 mr-2" />
+            Save Configuration
+          </Button>
+        </div>
       </div>
 
-      <Tabs defaultValue="merits" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="merits">Merit Tiers</TabsTrigger>
-          <TabsTrigger value="misdemeanors">Misdemeanors</TabsTrigger>
-          <TabsTrigger value="settings">System Settings</TabsTrigger>
+      {hasUnsavedChanges && (
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            You have unsaved changes. Don't forget to save your configuration.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Tabs defaultValue="notifications" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="thresholds">Thresholds</TabsTrigger>
+          <TabsTrigger value="automation">Automation</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="system">System</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="merits">
+        <TabsContent value="notifications" className="space-y-6">
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle className="flex items-center gap-2">
-                  <Award className="h-5 w-5" />
-                  Merit Tier Configuration
-                </CardTitle>
-                <Dialog open={isMeritDialogOpen} onOpenChange={setIsMeritDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-mcc-blue hover:bg-mcc-blue-dark">
-                      <Edit className="mr-2 h-4 w-4" />
-                      Configure Tiers
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle>Configure Merit Tiers</DialogTitle>
-                      <DialogDescription>
-                        Set up the merit tier system with points and descriptions.
-                      </DialogDescription>
-                    </DialogHeader>
-                    
-                    <div className="space-y-4 max-h-96 overflow-y-auto">
-                      {meritTiers.map((tier, index) => (
-                        <div key={tier.tier} className="p-4 border rounded-lg space-y-3">
-                          <div className="flex items-center gap-4">
-                            <div className="w-24">
-                              <Label>Tier</Label>
-                              <Input
-                                value={tier.tier}
-                                onChange={(e) => updateMeritTier(index, 'tier', e.target.value)}
-                                placeholder="Tier name"
-                              />
-                            </div>
-                            <div className="w-24">
-                              <Label>Points</Label>
-                              <Input
-                                type="number"
-                                step="0.5"
-                                value={tier.points}
-                                onChange={(e) => updateMeritTier(index, 'points', parseFloat(e.target.value))}
-                              />
-                            </div>
-                            <div className="w-32">
-                              <Label>Color</Label>
-                              <Input
-                                type="color"
-                                value={tier.color}
-                                onChange={(e) => updateMeritTier(index, 'color', e.target.value)}
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <Label>Description</Label>
-                            <Input
-                              value={tier.description}
-                              onChange={(e) => updateMeritTier(index, 'description', e.target.value)}
-                              placeholder="Tier description"
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsMeritDialogOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button onClick={saveMeritConfiguration} className="bg-mcc-blue hover:bg-mcc-blue-dark">
-                        Save Configuration
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="h-5 w-5" />
+                Notification Settings
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tier</TableHead>
-                    <TableHead>Points</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Color</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {meritTiers.map((tier) => (
-                    <TableRow key={tier.tier}>
-                      <TableCell className="font-medium">{tier.tier}</TableCell>
-                      <TableCell>{tier.points}</TableCell>
-                      <TableCell>{tier.description}</TableCell>
-                      <TableCell>
-                        <div 
-                          className="w-6 h-6 rounded border"
-                          style={{ backgroundColor: tier.color }}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <CardContent className="space-y-6">
+              {/* Notification Methods */}
+              <div className="space-y-4">
+                <h3 className="font-semibold">Notification Methods</h3>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Mail className="h-5 w-5 text-blue-600" />
+                    <div>
+                      <Label>Email Notifications</Label>
+                      <p className="text-sm text-gray-600">Send notifications via email</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={config.notifications.emailEnabled}
+                    onCheckedChange={(checked) => updateConfig('notifications', { emailEnabled: checked })}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <MessageSquare className="h-5 w-5 text-green-600" />
+                    <div>
+                      <Label>SMS Notifications</Label>
+                      <p className="text-sm text-gray-600">Send notifications via SMS</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={config.notifications.smsEnabled}
+                    onCheckedChange={(checked) => updateConfig('notifications', { smsEnabled: checked })}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Smartphone className="h-5 w-5 text-purple-600" />
+                    <div>
+                      <Label>Push Notifications</Label>
+                      <p className="text-sm text-gray-600">Send in-app push notifications</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={config.notifications.pushEnabled}
+                    onCheckedChange={(checked) => updateConfig('notifications', { pushEnabled: checked })}
+                  />
+                </div>
+              </div>
+
+              {/* Digest Settings */}
+              <div className="space-y-4">
+                <h3 className="font-semibold">Digest Settings</h3>
+                
+                <div>
+                  <Label>Digest Frequency</Label>
+                  <Select 
+                    value={config.notifications.digestFrequency} 
+                    onValueChange={(value: any) => updateConfig('notifications', { digestFrequency: value })}
+                  >
+                    <SelectTrigger className="w-48">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="immediate">Immediate</SelectItem>
+                      <SelectItem value="daily">Daily Digest</SelectItem>
+                      <SelectItem value="weekly">Weekly Digest</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Quiet Hours */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={config.notifications.quietHours.enabled}
+                    onCheckedChange={(checked) => updateConfig('notifications', { 
+                      quietHours: { ...config.notifications.quietHours, enabled: checked }
+                    })}
+                  />
+                  <Label>Enable Quiet Hours</Label>
+                </div>
+                
+                {config.notifications.quietHours.enabled && (
+                  <div className="grid grid-cols-2 gap-4 ml-8">
+                    <div>
+                      <Label>Start Time</Label>
+                      <Input
+                        type="time"
+                        value={config.notifications.quietHours.startTime}
+                        onChange={(e) => updateConfig('notifications', {
+                          quietHours: { ...config.notifications.quietHours, startTime: e.target.value }
+                        })}
+                      />
+                    </div>
+                    <div>
+                      <Label>End Time</Label>
+                      <Input
+                        type="time"
+                        value={config.notifications.quietHours.endTime}
+                        onChange={(e) => updateConfig('notifications', {
+                          quietHours: { ...config.notifications.quietHours, endTime: e.target.value }
+                        })}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="misdemeanors">
+        <TabsContent value="thresholds" className="space-y-6">
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5" />
-                  Misdemeanor Management
-                </CardTitle>
-                <Dialog open={isMisdemeanorDialogOpen} onOpenChange={setIsMisdemeanorDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button 
-                      className="bg-mcc-blue hover:bg-mcc-blue-dark"
-                      onClick={() => {
-                        setSelectedMisdemeanor(null);
-                        setMisdemeanorForm({
-                          name: '',
-                          location: 'Main School',
-                          category: '',
-                          severity_level: 1,
-                          sanctions: { '1st': '', '2nd': '', '3rd': '' }
-                        });
-                      }}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Misdemeanor
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle>
-                        {selectedMisdemeanor ? 'Edit Misdemeanor' : 'Add New Misdemeanor'}
-                      </DialogTitle>
-                      <DialogDescription>
-                        Configure misdemeanor details and progressive sanctions.
-                      </DialogDescription>
-                    </DialogHeader>
-                    
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="misdemeanor-name">Misdemeanor Name</Label>
-                          <Input
-                            id="misdemeanor-name"
-                            value={misdemeanorForm.name}
-                            onChange={(e) => setMisdemeanorForm({ ...misdemeanorForm, name: e.target.value })}
-                            placeholder="e.g., Late to Class"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="location">Location</Label>
-                          <Select 
-                            value={misdemeanorForm.location} 
-                            onValueChange={(value) => setMisdemeanorForm({ ...misdemeanorForm, location: value })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select location" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Main School">Main School</SelectItem>
-                              <SelectItem value="Hostel">Hostel</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="category">Category</Label>
-                          <Input
-                            id="category"
-                            value={misdemeanorForm.category}
-                            onChange={(e) => setMisdemeanorForm({ ...misdemeanorForm, category: e.target.value })}
-                            placeholder="e.g., Attendance, Dress Code"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="severity">Severity Level (1-5)</Label>
-                          <Select 
-                            value={misdemeanorForm.severity_level.toString()} 
-                            onValueChange={(value) => setMisdemeanorForm({ ...misdemeanorForm, severity_level: parseInt(value) })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select severity" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="1">1 - Minor</SelectItem>
-                              <SelectItem value="2">2 - Moderate</SelectItem>
-                              <SelectItem value="3">3 - Serious</SelectItem>
-                              <SelectItem value="4">4 - Severe</SelectItem>
-                              <SelectItem value="5">5 - Critical</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <Label>Progressive Sanctions</Label>
-                        {['1st', '2nd', '3rd'].map((offense) => (
-                          <div key={offense}>
-                            <Label htmlFor={`sanction-${offense}`}>{offense} Offense</Label>
-                            <Textarea
-                              id={`sanction-${offense}`}
-                              value={misdemeanorForm.sanctions[offense]}
-                              onChange={(e) => setMisdemeanorForm({
-                                ...misdemeanorForm,
-                                sanctions: { ...misdemeanorForm.sanctions, [offense]: e.target.value }
-                              })}
-                              placeholder={`Enter sanction for ${offense} offense`}
-                              rows={2}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsMisdemeanorDialogOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button 
-                        onClick={handleSaveMisdemeanor} 
-                        disabled={saveMisdemeanorMutation.isPending}
-                        className="bg-mcc-blue hover:bg-mcc-blue-dark"
-                      >
-                        {saveMisdemeanorMutation.isPending ? 'Saving...' : 'Save Misdemeanor'}
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                Behavioral Thresholds
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="text-center py-4">Loading misdemeanors...</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Severity</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {misdemeanors?.map((misdemeanor) => (
-                      <TableRow key={misdemeanor.id}>
-                        <TableCell className="font-medium">{misdemeanor.name}</TableCell>
-                        <TableCell>{misdemeanor.location}</TableCell>
-                        <TableCell>{misdemeanor.category}</TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            misdemeanor.severity_level <= 2 ? 'bg-green-100 text-green-800' :
-                            misdemeanor.severity_level <= 3 ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            Level {misdemeanor.severity_level}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            misdemeanor.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {misdemeanor.status}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditMisdemeanor(misdemeanor)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteMisdemeanor(misdemeanor.id)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <Label>Counseling Heat Score Threshold</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="10"
+                    value={config.thresholds.counselingHeatScore}
+                    onChange={(e) => updateConfig('thresholds', { counselingHeatScore: parseFloat(e.target.value) })}
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    Heat score that triggers counseling flag
+                  </p>
+                </div>
+
+                <div>
+                  <Label>Critical Heat Score Threshold</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="10"
+                    value={config.thresholds.criticalHeatScore}
+                    onChange={(e) => updateConfig('thresholds', { criticalHeatScore: parseFloat(e.target.value) })}
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    Heat score that requires immediate intervention
+                  </p>
+                </div>
+
+                <div>
+                  <Label>Parent Notification Threshold</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={config.thresholds.parentNotificationThreshold}
+                    onChange={(e) => updateConfig('thresholds', { parentNotificationThreshold: parseInt(e.target.value) })}
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    Number of incidents before parent notification
+                  </p>
+                </div>
+
+                <div>
+                  <Label>Max Incidents Per Week</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={config.thresholds.maxIncidentsPerWeek}
+                    onChange={(e) => updateConfig('thresholds', { maxIncidentsPerWeek: parseInt(e.target.value) })}
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    Weekly incident limit before escalation
+                  </p>
+                </div>
+
+                <div>
+                  <Label>Intervention Trigger (Days)</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={config.thresholds.interventionTriggerDays}
+                    onChange={(e) => updateConfig('thresholds', { interventionTriggerDays: parseInt(e.target.value) })}
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    Days before intervention is recommended
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="settings">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Heat Score Configuration</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>Excellent Behavior (0-3)</Label>
-                  <div className="text-sm text-gray-600">Full blue heat bar</div>
+        <TabsContent value="automation" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Automation Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Auto Parent Notification</Label>
+                    <p className="text-sm text-gray-600">Automatically notify parents when thresholds are reached</p>
+                  </div>
+                  <Switch
+                    checked={config.automation.autoParentNotification}
+                    onCheckedChange={(checked) => updateConfig('automation', { autoParentNotification: checked })}
+                  />
                 </div>
-                <div>
-                  <Label>Good Behavior (4-5)</Label>
-                  <div className="text-sm text-gray-600">Mostly blue heat bar</div>
-                </div>
-                <div>
-                  <Label>Warning Zone (6-7)</Label>
-                  <div className="text-sm text-gray-600">Mixed blue/red heat bar</div>
-                </div>
-                <div>
-                  <Label>Concerning (8-9)</Label>
-                  <div className="text-sm text-gray-600">Mostly red heat bar</div>
-                </div>
-                <div>
-                  <Label>Critical (10+)</Label>
-                  <div className="text-sm text-gray-600">Full red heat bar</div>
-                </div>
-                <Button className="w-full bg-mcc-blue hover:bg-mcc-blue-dark">
-                  Update Thresholds
-                </Button>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>System Notifications</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label>Email Notifications</Label>
-                  <Button variant="outline" size="sm">Configure</Button>
+                  <div>
+                    <Label>Auto Escalation</Label>
+                    <p className="text-sm text-gray-600">Automatically escalate critical cases</p>
+                  </div>
+                  <Switch
+                    checked={config.automation.autoEscalation}
+                    onCheckedChange={(checked) => updateConfig('automation', { autoEscalation: checked })}
+                  />
                 </div>
+
                 <div className="flex items-center justify-between">
-                  <Label>SMS Notifications</Label>
-                  <Button variant="outline" size="sm">Configure</Button>
+                  <div>
+                    <Label>Auto Report Generation</Label>
+                    <p className="text-sm text-gray-600">Generate reports automatically on schedule</p>
+                  </div>
+                  <Switch
+                    checked={config.automation.autoReportGeneration}
+                    onCheckedChange={(checked) => updateConfig('automation', { autoReportGeneration: checked })}
+                  />
                 </div>
+
+                <div>
+                  <Label>Escalation Delay (Hours)</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={config.automation.escalationDelayHours}
+                    onChange={(e) => updateConfig('automation', { escalationDelayHours: parseInt(e.target.value) })}
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    Hours to wait before automatic escalation
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="security" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Security Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <Label>Session Timeout (Minutes)</Label>
+                  <Input
+                    type="number"
+                    min="5"
+                    value={config.security.sessionTimeout}
+                    onChange={(e) => updateConfig('security', { sessionTimeout: parseInt(e.target.value) })}
+                  />
+                </div>
+
+                <div>
+                  <Label>Password Expiry (Days)</Label>
+                  <Input
+                    type="number"
+                    min="30"
+                    value={config.security.passwordExpiry}
+                    onChange={(e) => updateConfig('security', { passwordExpiry: parseInt(e.target.value) })}
+                  />
+                </div>
+
+                <div>
+                  <Label>Max Login Attempts</Label>
+                  <Input
+                    type="number"
+                    min="3"
+                    max="10"
+                    value={config.security.maxLoginAttempts}
+                    onChange={(e) => updateConfig('security', { maxLoginAttempts: parseInt(e.target.value) })}
+                  />
+                </div>
+
                 <div className="flex items-center justify-between">
-                  <Label>Auto-escalation Rules</Label>
-                  <Button variant="outline" size="sm">Configure</Button>
+                  <div>
+                    <Label>Require Two-Factor Authentication</Label>
+                    <p className="text-sm text-gray-600">Require 2FA for admin users</p>
+                  </div>
+                  <Switch
+                    checked={config.security.twoFactorRequired}
+                    onCheckedChange={(checked) => updateConfig('security', { twoFactorRequired: checked })}
+                  />
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="system" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                System Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label>Report Scheduling</Label>
-                  <Button variant="outline" size="sm">Configure</Button>
+                  <div>
+                    <Label>Maintenance Mode</Label>
+                    <p className="text-sm text-gray-600">Enable maintenance mode for system updates</p>
+                  </div>
+                  <Switch
+                    checked={config.system.maintenanceMode}
+                    onCheckedChange={(checked) => updateConfig('system', { maintenanceMode: checked })}
+                  />
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+
+                <div>
+                  <Label>Backup Frequency</Label>
+                  <Select 
+                    value={config.system.backupFrequency} 
+                    onValueChange={(value: any) => updateConfig('system', { backupFrequency: value })}
+                  >
+                    <SelectTrigger className="w-48">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Log Retention (Days)</Label>
+                  <Input
+                    type="number"
+                    min="30"
+                    value={config.system.logRetentionDays}
+                    onChange={(e) => updateConfig('system', { logRetentionDays: parseInt(e.target.value) })}
+                  />
+                </div>
+
+                <div>
+                  <Label>Cache Expiry (Hours)</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={config.system.cacheExpiryHours}
+                    onChange={(e) => updateConfig('system', { cacheExpiryHours: parseInt(e.target.value) })}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

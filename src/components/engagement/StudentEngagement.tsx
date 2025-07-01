@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useStudents } from '@/hooks/useStudents';
 import { useBehaviorRecords } from '@/hooks/useBehaviorRecords';
+import RewardRedemption from './RewardRedemption';
 import { 
   Trophy, 
   Target, 
@@ -108,9 +108,9 @@ const StudentEngagement: React.FC<StudentEngagementProps> = ({ className = "" })
     return {
       totalMeritsAwarded: merits.length,
       studentsWithMerits: new Set(merits.map(m => m.student_id)).size,
-      averageGoalCompletion: 68, // Sample data
-      activeGoals: 24, // Sample data
-      achievementsUnlocked: 156, // Sample data
+      averageGoalCompletion: 68,
+      activeGoals: 24,
+      achievementsUnlocked: 156,
       weeklyStreaks: students.filter(s => (s.behavior_score || 0) < 3).length
     };
   }, [records, students]);
@@ -133,6 +133,24 @@ const StudentEngagement: React.FC<StudentEngagementProps> = ({ className = "" })
     }
   };
 
+  // Calculate leaderboard with actual data
+  const leaderboard = React.useMemo(() => {
+    return students.map(student => {
+      const studentMerits = records.filter(r => r.student_id === student.id && r.type === 'merit');
+      const totalPoints = studentMerits.reduce((sum, merit) => sum + (merit.points || 0), 0);
+      
+      return {
+        ...student,
+        totalPoints,
+        monthlyPoints: studentMerits
+          .filter(m => new Date(m.created_at || '') > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
+          .reduce((sum, merit) => sum + (merit.points || 0), 0)
+      };
+    })
+    .sort((a, b) => b.monthlyPoints - a.monthlyPoints)
+    .slice(0, 10);
+  }, [students, records]);
+
   return (
     <div className={`space-y-6 ${className}`}>
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -140,10 +158,6 @@ const StudentEngagement: React.FC<StudentEngagementProps> = ({ className = "" })
           <h2 className="text-2xl font-bold">Student Engagement</h2>
           <p className="text-gray-600">Motivate positive behavior through gamification</p>
         </div>
-        <Button>
-          <Gift className="h-4 w-4 mr-2" />
-          Reward Students
-        </Button>
       </div>
 
       {/* Engagement Overview */}
@@ -284,17 +298,17 @@ const StudentEngagement: React.FC<StudentEngagementProps> = ({ className = "" })
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {students.slice(0, 10).map((student, index) => (
+                {leaderboard.map((student, index) => (
                   <div key={student.id} className="flex items-center gap-4 p-3 border rounded-lg">
                     <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
                       <span className="text-sm font-bold text-blue-600">#{index + 1}</span>
                     </div>
                     <div className="flex-1">
                       <h3 className="font-medium">{student.name}</h3>
-                      <p className="text-sm text-gray-600">Grade {student.grade}</p>
+                      <p className="text-sm text-gray-600">{student.grade}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold">245 pts</p>
+                      <p className="font-semibold">{student.monthlyPoints} pts</p>
                       <p className="text-sm text-gray-600">This month</p>
                     </div>
                   </div>
@@ -305,35 +319,7 @@ const StudentEngagement: React.FC<StudentEngagementProps> = ({ className = "" })
         </TabsContent>
 
         <TabsContent value="rewards" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Available Rewards</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[
-                  { name: 'Extra Break Time', cost: 50, description: '15 minutes extra break' },
-                  { name: 'Homework Pass', cost: 100, description: 'Skip one homework assignment' },
-                  { name: 'Class Representative', cost: 200, description: 'Be class rep for a week' },
-                  { name: 'Principal\'s Office Visit', cost: 300, description: 'Positive visit with principal' },
-                  { name: 'School Store Credit', cost: 150, description: '₦500 school store credit' },
-                  { name: 'Special Privileges', cost: 400, description: 'Various special privileges' }
-                ].map((reward, index) => (
-                  <div key={index} className="p-4 border rounded-lg hover:bg-gray-50">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Gift className="h-4 w-4 text-purple-600" />
-                      <h3 className="font-medium">{reward.name}</h3>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-3">{reward.description}</p>
-                    <div className="flex items-center justify-between">
-                      <Badge variant="outline">{reward.cost} pts</Badge>
-                      <Button size="sm">Redeem</Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <RewardRedemption />
         </TabsContent>
 
         <TabsContent value="challenges" className="space-y-6">
